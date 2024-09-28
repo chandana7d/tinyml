@@ -1,3 +1,6 @@
 tensorflow
 numpy
 pathlib
+matplotlib
+tensorflow_hub
+tensorflow_datasets
