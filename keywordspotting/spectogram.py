@@ -9,7 +9,15 @@ import sounddevice as sd
 import wave
 import tensorflow as tf
 
-
+"""
+The AudioProcessor class is designed to streamline the process of recording, saving, 
+and analyzing audio samples for various applications. With functionalities that include capturing audio in real-time, 
+aving it in standard formats, and visualizing its characteristics through multiple plots such as 
+1. signal waveforms
+2. Fourier transforms
+3. spectrograms
+4. Mel-frequency cepstral coefficients (MFCCs)
+"""
 class AudioProcessor:
     def __init__(self, output_dir='output', sample_rate=16000):
         self.sample_rate = sample_rate
