@@ -84,7 +84,7 @@ if __name__ == "__main__":
     print(f"Model Weights: {trainer.get_weights()}")
 
     # Save the trained model in the specified directory
-    export_dir = 'saved_model/run1'
+    export_dir = 'saved_model/saved_model/run1'
     trainer.save_model(export_dir)
 
     # Convert the saved model to TensorFlow Lite format
