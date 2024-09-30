@@ -17,6 +17,9 @@ aving it in standard formats, and visualizing its characteristics through multip
 2. Fourier transforms
 3. spectrograms
 4. Mel-frequency cepstral coefficients (MFCCs)
+
+Captures four distinct audio recordings (two "YES" samples and two "NO" samples) and saves each to separate WAV files. 
+The recordings vary based on the loudness and the content being said, allowing for varied data collection for potential analysis or machine learning tasks.
 """
 class AudioProcessor:
     def __init__(self, output_dir='output', sample_rate=16000):
@@ -102,10 +105,10 @@ if __name__ == "__main__":
     audio_yes_quiet, sr_yes_quiet = audio_processor.record_audio(3,"quiet YES")
     audio_processor.save_audio("audio_yes_quiet.wav", audio_yes_quiet)
 
-    audio_no_loud, sr_no_loud = audio_processor.record_audio(3,"no loud")
+    audio_no_loud, sr_no_loud = audio_processor.record_audio(3,"loud NO")
     audio_processor.save_audio("audio_no_loud.wav", audio_no_loud)
 
-    audio_no_quiet, sr_no_quiet = audio_processor.record_audio(3, "no quiet")
+    audio_no_quiet, sr_no_quiet = audio_processor.record_audio(3, "quiet No")
     audio_processor.save_audio("audio_no_quiet.wav", audio_no_quiet)
 
     # Plot and save the visualizations
