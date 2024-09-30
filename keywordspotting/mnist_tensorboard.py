@@ -35,6 +35,8 @@ class MNISTModel:
         self.x_train, self.x_test = x_train / 255.0, x_test / 255.0
         self.y_train, self.y_test = y_train, y_test
 
+        print(f"Number of x_train samples: {len(x_train)}, Number of y_train samples: {len(y_train)}")
+        print(f"Number of x_test samples: {len(x_test)}, Number of y_test samples: {len(y_test)}")
         # Create TensorFlow datasets for training and testing
         self.train_dataset = tf.data.Dataset.from_tensor_slices((self.x_train, self.y_train)).shuffle(60000).batch(64)
         self.test_dataset = tf.data.Dataset.from_tensor_slices((self.x_test, self.y_test)).batch(64)
