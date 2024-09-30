@@ -3,111 +3,125 @@ import shutil
 import tensorflow as tf
 import datetime
 
-# Clear any logs from previous runs
-log_dir = './logs/'
-if os.path.exists(log_dir):
-    shutil.rmtree(log_dir)  # Remove the logs directory
 
-# Load and normalize the MNIST dataset
-mnist = tf.keras.datasets.mnist
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
-x_train, x_test = x_train / 255.0, x_test / 255.0
+class MNISTModel:
+    def __init__(self):
+        # Initialize the model and data attributes
+        self.model = None
+        self.train_dataset = None
+        self.test_dataset = None
+        self.optimizer = tf.keras.optimizers.Adam()
+        self.loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
 
-def create_model():
-    return tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(input_shape=(28, 28), name='layers_flatten'),
-        tf.keras.layers.Dense(512, activation='relu', name='layers_dense'),
-        tf.keras.layers.Dropout(0.2, name='layers_dropout'),
-        tf.keras.layers.Dense(10, activation='softmax', name='layers_dense_2')
-    ])
+        # Initialize metrics
+        self.train_loss = tf.keras.metrics.Mean(name='train_loss')
+        self.train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
+        self.test_loss = tf.keras.metrics.Mean(name='test_loss')
+        self.test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
 
-# Using TensorBoard with Keras Model.fit()
-model = create_model()
-model.compile(optimizer='adam',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
+        self.EPOCHS = 5
 
-# Create a TensorBoard callback
-log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+        # Load and prepare data
+        self.load_data()
 
-model.fit(x=x_train,
-          y=y_train,
-          epochs=5,
-          validation_data=(x_test, y_test),
-          callbacks=[tensorboard_callback])
+        # Create the model
+        self.create_model()
 
-# Create TensorFlow datasets for training and testing
-train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(60000).batch(64)
-test_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test)).batch(64)
+    def load_data(self):
+        """Load and normalize the MNIST dataset."""
+        print("Loading and normalizing MNIST dataset...")
+        mnist = tf.keras.datasets.mnist
+        (x_train, y_train), (x_test, y_test) = mnist.load_data()
+        self.x_train, self.x_test = x_train / 255.0, x_test / 255.0
+        self.y_train, self.y_test = y_train, y_test
 
-# Choose loss and optimizer
-loss_object = tf.keras.losses.SparseCategoricalCrossentropy()
-optimizer = tf.keras.optimizers.Adam()
+        # Create TensorFlow datasets for training and testing
+        self.train_dataset = tf.data.Dataset.from_tensor_slices((self.x_train, self.y_train)).shuffle(60000).batch(64)
+        self.test_dataset = tf.data.Dataset.from_tensor_slices((self.x_test, self.y_test)).batch(64)
 
-# Define our metrics
-train_loss = tf.keras.metrics.Mean(name='train_loss')
-train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
-test_loss = tf.keras.metrics.Mean(name='test_loss')
-test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+    def create_model(self):
+        """Create and compile the Keras model."""
+        print("Creating the model...")
+        self.model = tf.keras.models.Sequential([
+            tf.keras.layers.Flatten(input_shape=(28, 28), name='layers_flatten'),
+            tf.keras.layers.Dense(512, activation='relu', name='layers_dense'),
+            tf.keras.layers.Dropout(0.2, name='layers_dropout'),
+            tf.keras.layers.Dense(10, activation='softmax', name='layers_dense_2')
+        ])
 
-# Define the training and test functions
-def train_step(model, optimizer, x_train, y_train):
-    with tf.GradientTape() as tape:
-        predictions = model(x_train, training=True)
-        loss = loss_object(y_train, predictions)
-    grads = tape.gradient(loss, model.trainable_variables)
-    optimizer.apply_gradients(zip(grads, model.trainable_variables))
+        self.model.compile(optimizer=self.optimizer,
+                           loss=self.loss_object,
+                           metrics=['accuracy'])
 
-    train_loss.update_state(loss)
-    train_accuracy.update_state(y_train, predictions)
+    def train_step(self, x_batch, y_batch):
+        """Perform a single training step."""
+        with tf.GradientTape() as tape:
+            predictions = self.model(x_batch, training=True)
+            loss = self.loss_object(y_batch, predictions)
+        grads = tape.gradient(loss, self.model.trainable_variables)
+        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
-def test_step(model, x_test, y_test):
-    predictions = model(x_test)
-    loss = loss_object(y_test, predictions)
+        # Update metrics
+        self.train_loss.update_state(loss)
+        self.train_accuracy.update_state(y_batch, predictions)
 
-    test_loss.update_state(loss)
-    test_accuracy.update_state(y_test, predictions)
+    def test_step(self, x_batch, y_batch):
+        """Perform a single testing step."""
+        predictions = self.model(x_batch)
+        loss = self.loss_object(y_batch, predictions)
 
-# Set up summary writers to write the summaries to disk in a different logs directory
-current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
-test_log_dir = 'logs/gradient_tape/' + current_time + '/test'
-train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-test_summary_writer = tf.summary.create_file_writer(test_log_dir)
+        # Update metrics
+        self.test_loss.update_state(loss)
+        self.test_accuracy.update_state(y_batch, predictions)
 
-# Start training
-model = create_model()  # Reset our model
-EPOCHS = 5
+    def train(self):
+        """Train the model and log the results."""
+        print("Starting training...")
+        # Set up TensorBoard logging
+        current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
+        test_log_dir = 'logs/gradient_tape/' + current_time + '/test'
+        train_summary_writer = tf.summary.create_file_writer(train_log_dir)
+        test_summary_writer = tf.summary.create_file_writer(test_log_dir)
 
-for epoch in range(EPOCHS):
-    # Reinitialize metrics at the start of each epoch
-    train_loss = tf.keras.metrics.Mean(name='train_loss')
-    train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='train_accuracy')
-    test_loss = tf.keras.metrics.Mean(name='test_loss')
-    test_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(name='test_accuracy')
+        for epoch in range(self.EPOCHS):
+            # Training loop
+            for (x_train_batch, y_train_batch) in self.train_dataset:
+                self.train_step(x_train_batch, y_train_batch)
 
-    for (x_train_batch, y_train_batch) in train_dataset:
-        train_step(model, optimizer, x_train_batch, y_train_batch)
+            # Log training metrics
+            with train_summary_writer.as_default():
+                tf.summary.scalar('loss', self.train_loss.result(), step=epoch)
+                tf.summary.scalar('accuracy', self.train_accuracy.result(), step=epoch)
 
-    with train_summary_writer.as_default():
-        tf.summary.scalar('loss', train_loss.result(), step=epoch)
-        tf.summary.scalar('accuracy', train_accuracy.result(), step=epoch)
+            # Testing loop
+            for (x_test_batch, y_test_batch) in self.test_dataset:
+                self.test_step(x_test_batch, y_test_batch)
 
-    for (x_test_batch, y_test_batch) in test_dataset:
-        test_step(model, x_test_batch, y_test_batch)
+            # Log testing metrics
+            with test_summary_writer.as_default():
+                tf.summary.scalar('loss', self.test_loss.result(), step=epoch)
+                tf.summary.scalar('accuracy', self.test_accuracy.result(), step=epoch)
 
-    with test_summary_writer.as_default():
-        tf.summary.scalar('loss', test_loss.result(), step=epoch)
-        tf.summary.scalar('accuracy', test_accuracy.result(), step=epoch)
+            # Print epoch results
+            template = 'Epoch {}, Loss: {}, Accuracy: {}, Test Loss: {}, Test Accuracy: {}'
+            print(template.format(epoch + 1,
+                                  self.train_loss.result(),
+                                  self.train_accuracy.result() * 100,
+                                  self.test_loss.result(),
+                                  self.test_accuracy.result() * 100))
 
-    template = 'Epoch {}, Loss: {}, Accuracy: {}, Test Loss: {}, Test Accuracy: {}'
-    print(template.format(epoch + 1,
-                           train_loss.result(),
-                           train_accuracy.result() * 100,
-                           test_loss.result(),
-                           test_accuracy.result() * 100))
 
-# Open TensorBoard again, this time pointing it at the new log directory.
-# Uncomment this line to run TensorBoard in Jupyter Notebook
-# %tensorboard --logdir logs/gradient_tape
+# Example usage
+if __name__ == "__main__":
+    # Clear any logs from previous runs
+    log_dir = './logs/'
+    if os.path.exists(log_dir):
+        shutil.rmtree(log_dir)  # Remove the logs directory
+
+    # Instantiate and train the model
+    mnist_model = MNISTModel()
+    mnist_model.train()
+
+    # Uncomment this line to run TensorBoard in Jupyter Notebook
+    # %tensorboard --logdir logs/gradient_tape
