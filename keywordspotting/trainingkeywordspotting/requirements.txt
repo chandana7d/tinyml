@@ -1,0 +1,14 @@
+tensorflow
+numpy
+pathlib
+matplotlib
+tensorflow_hub
+tensorflow_datasets
+ssl
+urllib
+tensorflow_model_optimization
+pandas
+ffmpeg
+tensorflow_io
+librosa
+IPython
